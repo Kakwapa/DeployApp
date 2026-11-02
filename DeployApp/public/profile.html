@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="card p-4 shadow-sm mx-auto" style="max-width: 600px;">
+            <h2 id="headerUsername" class="mb-4">Loading...</h2>
+            <!-- Reusable message box for success or error alerts -->
+            <div id="msgBox" class="alert d-none"></div>
+            
+            <form id="profileForm">
+                <div class="mb-3">
+                    <label>Email Address</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label>Phone Number (Numbers only)</label>
+                    <input type="text" id="phone" class="form-control" pattern="[0-9]+" required>
+                </div>
+                <div class="mb-3">
+                    <label>Date of Birth</label>
+                    <input type="date" id="dob" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Grab the token we saved during login
+        const token = localStorage.getItem('token');
+        // If there is no token, kick them back to the login page
+        if (!token) window.location.href = '/'; 
+
+        const msgBox = document.getElementById('msgBox');
+
+        // When the page loads, fetch the user's data to populate the form
+        async function loadProfile() {
+            const response = await fetch('/api/profile', {
+                headers: { 'Authorization': token }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('headerUsername').textContent = `Welcome, ${data.username}`;
+                document.getElementById('email').value = data.email;
+                document.getElementById('phone').value = data.phone;
+                // Format the date so it fits nicely into the HTML date input
+                document.getElementById('dob').value = new Date(data.dob).toISOString().split('T')[0];
+            } else {
+                // If the token is expired or invalid, clear it and go back to login
+                localStorage.removeItem('token');
+                window.location.href = '/';
+            }
+        }
+        loadProfile();
+
+        // Handle the form submission when they click Save
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const dob = document.getElementById('dob').value;
+
+            try {
+                const response = await fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token // Must pass the token so the backend lets us in
+                    },
+                    body: JSON.stringify({ email, phone, dob })
+                });
+                const data = await response.json();
+                
+                // Reset the message box styles before showing a new message
+                msgBox.classList.remove('d-none', 'alert-danger', 'alert-success');
+                
+                if (response.ok) {
+                    msgBox.classList.add('alert-success');
+                    msgBox.textContent = data.message;
+                } else {
+                    msgBox.classList.add('alert-danger');
+                    msgBox.textContent = data.message; 
+                }
+            } catch (err) {
+                console.error("Failed to update profile", err);
+            }
+        });
+    </script>
+</body>
+</html>
